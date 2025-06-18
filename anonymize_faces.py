@@ -40,7 +40,6 @@ class HaarCascadeDetector(FaceDetector):
 
 def anonymize_faces(frame, detector: FaceDetector):
     boxes = detector.detect(frame)
-    frame_copy = frame.copy()  # Create a copy to avoid modifying the original frame directly
     for (x, y, x2, y2) in boxes:
         # Calculate center and axes for the ellipse
         center_x = (x + x2) // 2
@@ -64,16 +63,16 @@ def anonymize_faces(frame, detector: FaceDetector):
         )
 
         # Blur the region of interest
-        roi = frame_copy[y:y2, x:x2]
+        roi = frame[y:y2, x:x2]
         if roi.size == 0:
             continue
-        blurred_roi = cv2.GaussianBlur(frame_copy, (99, 99), 30)
+        blurred_roi = cv2.GaussianBlur(frame, (99, 99), 30)
 
         # Apply the mask to blend the blurred region
-        masked_blur = np.where(mask != 0, blurred_roi, frame_copy)
-        frame_copy = masked_blur
+        masked_blur = np.where(mask != 0, blurred_roi, frame)
+        frame = masked_blur
 
-    return frame_copy
+    return frame
 
 def main(input_video, output_video, detector: FaceDetector):
     cap = cv2.VideoCapture(input_video)
@@ -109,18 +108,40 @@ def main(input_video, output_video, detector: FaceDetector):
         print("Processing complete.")
 
 if __name__ == "__main__":
-    # Change to selected model type: ["caffe", "haar"]
-    DETECTOR_TYPE = "caffe"  
-    INPUT_SOURCE = "inputs/input_video.mp4"  # Change to "webcam" or a video file path
+    
+    #>>>>>>>>>>>>> Configure mnodel and input here <<<<<<<<<<<<<
+    
+    # Change to selected model type:
+    # ["caffe", "haar1", "haar2", "haar3", "haar4"]
+    DETECTOR_TYPE = "caffe"
+    
+    # Change to input source:
+    # "webcam" for live webcam feed or path to video file
+    #INPUT_SOURCE = "inputs/input_video.mp4"
+    INPUT_SOURCE = "webcam" 
+    
+    ############################################################
+
+
 
     if DETECTOR_TYPE == "caffe":
         detector = CaffeSSDDetector(
-            model_file='models/res10_300x300_ssd_iter_140000_fp16.caffemodel',
-            config_file='models/deploy.prototxt',
-            confidence_threshold=0.3
+            model_file='models/ResNet_10_SSD/res10_300x300_ssd_iter_140000_fp16.caffemodel',
+            config_file='models/ResNet_10_SSD/deploy.prototxt',
+            confidence_threshold=0.25
         )
-    elif DETECTOR_TYPE == "haar":
-        detector = HaarCascadeDetector('models/haarcascade_frontalface_default.xml')
+    elif DETECTOR_TYPE == "haar1":
+        detector = HaarCascadeDetector('models/Haar_Cascade/haarcascade_frontalface_default.xml')
+
+    elif DETECTOR_TYPE == "haar2":
+        detector = HaarCascadeDetector('models/Haar_Cascade/haarcascade_frontalface_alt.xml')
+
+    elif DETECTOR_TYPE == "haar3":
+        detector = HaarCascadeDetector('models/Haar_Cascade/haarcascade_frontalface_alt2.xml')
+
+    elif DETECTOR_TYPE == "haar4":
+        detector = HaarCascadeDetector('models/Haar_Cascade/haarcascade_frontalface_alt_tree.xml')
+
 
     input_source = 0 if INPUT_SOURCE == "webcam" else INPUT_SOURCE
 
