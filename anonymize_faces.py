@@ -40,12 +40,40 @@ class HaarCascadeDetector(FaceDetector):
 
 def anonymize_faces(frame, detector: FaceDetector):
     boxes = detector.detect(frame)
+    frame_copy = frame.copy()  # Create a copy to avoid modifying the original frame directly
     for (x, y, x2, y2) in boxes:
-        roi = frame[y:y2, x:x2]
+        # Calculate center and axes for the ellipse
+        center_x = (x + x2) // 2
+        center_y = (y + y2) // 2
+        axis_x = (x2 - x) // 2  # Half width
+        axis_y = (y2 - y) // 2  # Half height, adjust for more oval shape if needed
+        # Adjust axis_y to make it slightly longer for an egg-like shape
+        axis_y = int(axis_y * 1.2)  # Increase vertical axis by 20% for oval effect
+
+        # Create a mask for the ellipse
+        mask = np.zeros_like(frame)
+        cv2.ellipse(
+            mask,
+            center=(center_x, center_y),
+            axes=(axis_x, axis_y),
+            angle=0,
+            startAngle=0,
+            endAngle=360,
+            color=(255, 255, 255),
+            thickness=-1  # Filled ellipse
+        )
+
+        # Blur the region of interest
+        roi = frame_copy[y:y2, x:x2]
         if roi.size == 0:
             continue
-        frame[y:y2, x:x2] = cv2.GaussianBlur(roi, (99, 99), 30)
-    return frame
+        blurred_roi = cv2.GaussianBlur(frame_copy, (99, 99), 30)
+
+        # Apply the mask to blend the blurred region
+        masked_blur = np.where(mask != 0, blurred_roi, frame_copy)
+        frame_copy = masked_blur
+
+    return frame_copy
 
 def main(input_video, output_video, detector: FaceDetector):
     cap = cv2.VideoCapture(input_video)
@@ -83,7 +111,7 @@ def main(input_video, output_video, detector: FaceDetector):
 if __name__ == "__main__":
     # Change to selected model type: ["caffe", "haar"]
     DETECTOR_TYPE = "caffe"  
-    INPUT_SOURCE = "webcam"  # Change to "webcam" or a video file path
+    INPUT_SOURCE = "inputs/input_video.mp4"  # Change to "webcam" or a video file path
 
     if DETECTOR_TYPE == "caffe":
         detector = CaffeSSDDetector(
